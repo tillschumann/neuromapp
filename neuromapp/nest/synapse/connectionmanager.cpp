@@ -44,10 +44,16 @@ namespace nest {
             //TODO permute parameters
             tsodyks2 syn(delay, weight, U, u, x, tau_rec, tau_fac, target);
 
-            ConnectorBase<>* conn = validate_source_entry( t, s_gid);
-            conn->push_back(syn);
-    //        ConnectorBase c = add_connection<tsodyks2>( conn, syn );
-            connections_[ t ].set( s_gid, conn );
+            if(NULL != validate_source_entry( t, s_gid)){
+                ConnectorBase<>* conn = validate_source_entry( t, s_gid);
+                conn->push_back(syn);
+                connections_[ t ].set( s_gid, conn );
+            }else{
+                ConnectorBase<>* conn = new ConnectorBase<>;
+                conn->push_back(syn);
+                connections_[ t ].set( s_gid, conn );
+            }
+
         }
         else {
             throw std::invalid_argument("synapse model unknown");

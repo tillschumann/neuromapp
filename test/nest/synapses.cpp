@@ -292,8 +292,6 @@ BOOST_AUTO_TEST_CASE(nest_connector_send) {
     const double dt = 0.1;
     int iterations = 10;
 
-    //nest::PoorMansAllocator poormansallocpool = nest::PoorMansAllocator();
-
     for (unsigned int k=1; k<K_CUTOFF+5; k++) {
         nest::scheduler test_env;
 
@@ -304,7 +302,6 @@ BOOST_AUTO_TEST_CASE(nest_connector_send) {
             nest::tsodyks2 new_synapse(delay, weight, U, u, x, tau_rec, tau_fac, nest::scheduler::add_node(&(detector[i])));
             conn.push_back(new_synapse);
          }
-
 
         double x_i = x;
         double u_i = u;
@@ -328,6 +325,7 @@ BOOST_AUTO_TEST_CASE(nest_connector_send) {
                 BOOST_REQUIRE_EQUAL(detector[j].spikes.size(), i+1);
                 BOOST_REQUIRE_CLOSE(detector[j].spikes[i].get_weight(), w, 0.01);
             }
+
         }
     }
 }
