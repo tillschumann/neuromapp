@@ -31,6 +31,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <numeric>
+#include <iostream>
 
 #include "coreneuron_1.0/common/data/helper.h"
 #include "coreneuron_1.0/event_passing/spike/algos.hpp"

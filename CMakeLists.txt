@@ -15,8 +15,19 @@ include(Compiler)
 string(REPLACE "-std=c++11" " " CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${C_DIALECT_OPT_C99EXT}")
 
-
 include(BlueGenePortability)
+
+
+#folly
+INCLUDE(FindPackageHandleStandardArgs)
+
+FIND_LIBRARY(FOLLY_LIBRARY folly)
+FIND_PATH(FOLLY_INCLUDE_DIR "folly/String.h")
+
+SET(FOLLY_LIBRARIES ${FOLLY_LIBRARY})
+
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(Folly
+  REQUIRED_ARGS FOLLY_INCLUDE_DIR FOLLY_LIBRARIES)
 
 #find_package(Boost COMPONENTS thread date_time program_options filesystem system REQUIRED)
 find_package(Boost 1.44 REQUIRED chrono program_options unit_test_framework system filesystem atomic random)
