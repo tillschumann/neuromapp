@@ -29,6 +29,7 @@
 #include <cassert>
 
 #include <folly/small_vector.h>
+#include <folly/FBVector.h>
 
 #include "nest/synapse/node.h"
 #include "nest/synapse/event.h"
@@ -86,8 +87,9 @@ public:
 
 private:
   double t_lastspike_;
-  folly::small_vector<T,8> v;
-//  std::vector<T> v;
+ // folly::small_vector<T,8> v;
+  folly::fbvector<T> v;
+ // std::vector<T> v;
 };
 } //end namespace
 #endif
