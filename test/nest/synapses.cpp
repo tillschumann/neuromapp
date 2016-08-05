@@ -39,10 +39,9 @@
 
 #include "coreneuron_1.0/common/data/helper.h" // common functionalities
 
+#define K 3
 
 using nest::ConnectorBase;
-using nest::Connector;
-using nest::vector_like;
 using nest::tsodyks2;
 
 BOOST_AUTO_TEST_CASE(nest_model_test)
@@ -259,34 +258,16 @@ BOOST_AUTO_TEST_CASE(nest_synapse_tsodyks2_test)
 
 BOOST_AUTO_TEST_CASE(nest_grow_static_connector_test)
 {
-    nest::pool_env pevn;
-
-    unsigned int K = K_CUTOFF-1;
     //create a connector with one tsodyks2 connection
-    ConnectorBase* conn = NULL;
+    ConnectorBase<> conn;
 
     for(unsigned int i = 1; i < K+1; ++i){
         tsodyks2 syn;
-        conn = nest::add_connection< tsodyks2 >(conn, syn);
-        BOOST_CHECK_EQUAL(conn->get_size(), i);
+        conn.push_back(syn);
+        BOOST_CHECK_EQUAL(conn.size(), i);
     }
 }
 
-/* When K >= K_CUTOFF (3), connector becomes a dynamic container.
- Behaviour should stay the same.
- */
-BOOST_AUTO_TEST_CASE(nest_grow_dynamic_connector_test)
-{
-    nest::pool_env pevn;
-
-    unsigned int K = K_CUTOFF+5;
-    ConnectorBase* conn = NULL;
-    for(unsigned int i = 1; i < K+1; ++i){
-        tsodyks2 syn;
-        conn = nest::add_connection<tsodyks2>(conn, syn);
-        BOOST_CHECK_EQUAL(conn->get_size(), i);
-    }
-}
 
 BOOST_AUTO_TEST_CASE(nest_connector_test){
     std::vector<std::string> command_v;
@@ -300,7 +281,6 @@ BOOST_AUTO_TEST_CASE(nest_connector_test){
 }
 
 BOOST_AUTO_TEST_CASE(nest_connector_send) {
-    nest::pool_env pevn;
 
     const double weight = 1.;
     const double delay = 0.1;
@@ -316,14 +296,15 @@ BOOST_AUTO_TEST_CASE(nest_connector_send) {
 
     for (unsigned int k=1; k<K_CUTOFF+5; k++) {
         nest::scheduler test_env;
-        
+
         std::vector<nest::spikedetector> detector(k);
-        ConnectorBase* conn = NULL;
+        ConnectorBase<> conn;
 
         for (unsigned int i=0; i<k; i++) {
             nest::tsodyks2 new_synapse(delay, weight, U, u, x, tau_rec, tau_fac, nest::scheduler::add_node(&(detector[i])));
-            conn = nest::add_connection< tsodyks2 >(conn, new_synapse);
-        }
+            conn.push_back(new_synapse);
+         }
+
 
         double x_i = x;
         double u_i = u;
@@ -334,7 +315,7 @@ BOOST_AUTO_TEST_CASE(nest_connector_send) {
             se.set_weight( weight );
             se.set_delay( delay );
 
-            conn->send( se ); //thread removed (see synpase)
+            conn.send( se ); //thread removed (see synpase)
 
             //solution from [3] equations (4) and (5):
             x_i = 1 + (x_i - x_i*u_i-1)*std::exp(-(dt/tau_rec));
@@ -352,7 +333,6 @@ BOOST_AUTO_TEST_CASE(nest_connector_send) {
 }
 
 BOOST_AUTO_TEST_CASE(nest_manager_) {
-    nest::pool_env pevn;
 
     const int ncells = 2;
 
@@ -388,8 +368,6 @@ BOOST_AUTO_TEST_CASE(nest_manager_) {
 
 BOOST_AUTO_TEST_CASE(nest_manager_build_from_neuron) {
     nest::scheduler test_env;
-
-    nest::pool_env pevn;
 
     std::cout << "nest_manager_build_from_neuron" << std::endl;
 
@@ -432,7 +410,7 @@ BOOST_AUTO_TEST_CASE(nest_manager_build_from_neuron) {
     nest::spikeevent se;
     for (int i=0; i<ncells; i++) {
         //test number of outgoing connections
-        BOOST_REQUIRE_EQUAL(cm.connections_[ 0 ].get(i)->get_size(), outgoing);
+        BOOST_REQUIRE_EQUAL(cm.connections_[ 0 ].get(i)->size(), outgoing);
         //test event handling
         cm.send(0, i, se);
         BOOST_REQUIRE_EQUAL(detectors[0].spikes.size(), (i+1)*outgoing);

@@ -149,8 +149,6 @@ BOOST_AUTO_TEST_CASE(nest_distri_event)
     vm.insert(std::make_pair("tau_rec", po::variable_value(1.0, false)));
     vm.insert(std::make_pair("tau_fac", po::variable_value(1.0, false)));
 
-    nest::pool_env penv(nthreads);
-
     //preallocate vector for results
     std::vector<nest::spikedetector> detectors(ncells);
     std::vector<nest::targetindex> detectors_targetindex(ncells);

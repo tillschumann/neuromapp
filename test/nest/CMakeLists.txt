@@ -1,5 +1,5 @@
 #list of tests
-set(nest_tests synapses pool)
+set(nest_tests synapses)
 add_compile_options(-std=c++11)
 
 #loop over nest test for creation

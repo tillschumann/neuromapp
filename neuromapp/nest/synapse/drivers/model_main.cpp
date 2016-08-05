@@ -318,9 +318,6 @@ namespace nest
             const int ncells = vm["nNeurons"].as<int>();
             const int fanout = vm["fanout"].as<int>();
 
-            //setup allocator
-            nest::pool_env penv(nthreads, pool);
-
             //build connection manager
             connectionmanager cm(vm);
             environment::continousdistribution neuro_dist(size, rank, ncells);
@@ -395,8 +392,6 @@ namespace nest
 
             const int fanout = vm["fanout"].as<int>();
 
-            //setup allocator
-            nest::pool_env penv(1, pool); // use one thread
 
             //preallocate vector for results
             std::vector<spikedetector> detectors(fanout);
@@ -409,13 +404,13 @@ namespace nest
 
             //create connector ptr
             //has to be set to NULL (check add_connection(..))
-            ConnectorBase* conn = NULL;
+            ConnectorBase<> conn;
 
             //build connector
             for(unsigned int i=0; i < fanout; ++i) {
                 //TODO permute parameters
                 tsodyks2 synapse(syn_delay, syn_weight, syn_U, syn_u, syn_x, syn_tau_rec, syn_tau_fac, detectors_targetindex[i%fanout]);
-                conn = add_connection(conn, synapse); //use static function from connectionmanager
+                conn.push_back(synapse); //use static function from connectionmanager
             }
 
             //create a few events
@@ -428,7 +423,7 @@ namespace nest
 
             boost::chrono::system_clock::time_point start = boost::chrono::system_clock::now();
             for (unsigned int i=0; i<nSpikes; i++) {
-                conn->send(events[i]); //send spike
+                conn.send(events[i]); //send spike
             }
 
             delay = boost::chrono::system_clock::now() - start;

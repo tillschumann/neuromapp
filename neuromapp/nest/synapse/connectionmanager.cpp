@@ -26,8 +26,8 @@ namespace nest {
     connectionmanager::send( thread t, index sgid, event& e )
     {
       if ( sgid < connections_[ t ].size() ) // probably test only fails, if there are no connections
-        if ( connections_[ t ].get( sgid ) != 0 ) // only send, if connections exist
-          connections_[ t ].get( sgid )->send( e );
+        if ( connections_[ t ].get( sgid ) != 0 )// only send, if connections exist
+         connections_[ t ].get( sgid )->send( e );
     }
 
     void
@@ -44,16 +44,17 @@ namespace nest {
             //TODO permute parameters
             tsodyks2 syn(delay, weight, U, u, x, tau_rec, tau_fac, target);
 
-            ConnectorBase* conn = validate_source_entry( t, s_gid);
-            ConnectorBase* c = add_connection<tsodyks2>( conn, syn );
-            connections_[ t ].set( s_gid, c );
+            ConnectorBase<>* conn = validate_source_entry( t, s_gid);
+            conn->push_back(syn);
+    //        ConnectorBase c = add_connection<tsodyks2>( conn, syn );
+            connections_[ t ].set( s_gid, conn );
         }
         else {
             throw std::invalid_argument("synapse model unknown");
         }
     }
 
-    ConnectorBase*
+    ConnectorBase<>*
     connectionmanager::validate_source_entry( thread tid, index s_gid)
     {
       assert(s_gid<ncells);

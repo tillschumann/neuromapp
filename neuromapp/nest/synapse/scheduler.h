@@ -35,7 +35,7 @@
 
 namespace nest
 {
-    class ConnectorBase; //forward declaration
+//  class ConnectorBase; //forward declaration
     class tsodyks2;
 
     typedef unsigned short targetindex; //simplification of hpc synapses from NEST

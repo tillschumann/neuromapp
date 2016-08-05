@@ -13,7 +13,6 @@
 #include "nest/libnestutil/sparsetable.h"
 #include "nest/synapse/models/tsodyks2.h"
 #include "nest/synapse/event.h"
-#include "nest/synapse/memory.h"
 
 #include "coreneuron_1.0/event_passing/environment/presyn_maker.h"
 
@@ -22,7 +21,7 @@ namespace po = boost::program_options;
 namespace nest
 {
 
-    typedef google::sparsetable< ConnectorBase* > tSConnector; // for all neurons having targets
+    typedef google::sparsetable< ConnectorBase<>* > tSConnector; // for all neurons having targets
     typedef std::vector< tSConnector > tVSConnector;           // for all threads
 
     class connectionmanager {
@@ -32,7 +31,7 @@ namespace nest
         po::variables_map const& vm;
 
 
-        ConnectorBase* validate_source_entry( thread tid, index s_gid);
+        ConnectorBase<>* validate_source_entry( thread tid, index s_gid);
     public:
         tVSConnector connections_;
 

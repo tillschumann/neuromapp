@@ -77,7 +77,6 @@ int main(int argc, char* argv[]) {
     vm.insert(std::make_pair("tau_rec", po::variable_value(syn_tau_rec, false)));
     vm.insert(std::make_pair("tau_fac", po::variable_value(syn_tau_fac, false)));
 
-    nest::pool_env penv(nthreads);
 
     //create environment
     environment::event_generator generator(nthreads);
