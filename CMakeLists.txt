@@ -39,7 +39,7 @@ include(BlueGenePortability)
 
 
 # include all directories
-include_directories(${Boost_INCLUDE_DIRS} ${MPI_C_INCLUDE_PATH} )
+include_directories(${FOLLY_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${MPI_C_INCLUDE_PATH} )
 
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g ")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ")

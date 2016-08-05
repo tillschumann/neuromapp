@@ -1,6 +1,5 @@
 add_subdirectory (synapse)
-
-
+add_compile_options(-std=c++11)
 add_library (nest_dist eventdelivermanager.cpp simulationmanager.cpp simulationmanager.cpp mpi_manager.cpp)
 
 install (TARGETS nest_dist DESTINATION lib)
@@ -8,7 +7,7 @@ install (FILES eventdelivermanager.h
                simulationmanager.h
                simulationmanager.h
                mpi_manager.h DESTINATION include)
-               
+
 target_link_libraries (nest_dist
                        nest_manager
                        coreneuron10_queueing
@@ -16,7 +15,7 @@ target_link_libraries (nest_dist
                        ${MPI_CXX_LIBRARIES}
                        ${MPI_C_LIBRARIES}
                        ${Boost_LIBRARIES})
-                       
+
 
 add_executable(nest_dist_exec distributed_driver.cpp )
 

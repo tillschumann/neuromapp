@@ -1,5 +1,6 @@
 #list of tests
 set(nest_tests synapses pool)
+add_compile_options(-std=c++11)
 
 #loop over nest test for creation
 foreach(i ${nest_tests})

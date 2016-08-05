@@ -27,6 +27,7 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <folly/small_vector.h>
 
 #include "nest/synapse/node.h"
 #include "nest/synapse/event.h"
