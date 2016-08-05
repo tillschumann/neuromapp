@@ -1,7 +1,7 @@
 /*
  * Neuromapp - nestconnection.h, Copyright (c), 2015,
  * Till Schumann - Swiss Federal Institute of technology in Lausanne,
- * timothee.ewart@epfl.ch,
+ * till.schumann@epfl.ch,
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -19,22 +19,23 @@
  */
 
 /**
- * @file neuromapp/nest/synapse/synapse.h
+ * @file neuromapp/nest/synapse/drivers/synapse.h
  * \brief nest synapse Miniapp
  */
 
 #ifndef MAPP_SYNAPSE_EXECUTE_
 #define MAPP_SYNAPSE_EXECUTE_
 
+//! Namespace for all the nest miniapps
 namespace nest
 {
-	/** \fn nestconnection_execute(int argc, char *const argv[])
-		\brief nest synapse miniapp
-		\param argc number of argument from the command line
-		\param argv the command line from the driver or external call
-		\return error message from mapp::mapp_error
-	 */
-	int synapse_execute(int argc, char* const argv[]);
+    /** \fn model_execute(int argc, char *const argv[])
+        \brief nest synapse miniapp
+        \param argc number of argument from the command line
+        \param argv the command line from the driver or external call
+        \return error message from mapp::mapp_error
+     */
+    int model_execute(int argc, char* const argv[]);
 };
 
 #endif

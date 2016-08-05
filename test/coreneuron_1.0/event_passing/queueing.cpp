@@ -37,6 +37,7 @@
 #include "coreneuron_1.0/event_passing/queueing/pool.h"
 #include "coreneuron_1.0/event_passing/queueing/thread.h"
 #include "coreneuron_1.0/event_passing/environment/generator.h"
+#include "coreneuron_1.0/event_passing/environment/event_generators.hpp"
 #include "coreneuron_1.0/event_passing/environment/presyn_maker.h"
 #include "coreneuron_1.0/event_passing/spike/spike_interface.h"
 #include "utils/error.h"
@@ -204,6 +205,35 @@ BOOST_AUTO_TEST_CASE(pool_constructor){
     BOOST_CHECK(pl.get_ngroups() == ngroups);
 }
 
+ /**
+  * Tests the constructor for the generator class
+  * Specific set of parameters to elicit failure
+  * in commit 86f12a902962d16a227009ff1a0bb8ebe42a2e3
+  */
+ BOOST_AUTO_TEST_CASE(generator_constructor){
+    int ncells = 4;
+    int fanin = 4;
+    int ngroups = 1;
+    int nspikes = 100;
+    int rank = 1;
+    int nprocs = 2;
+
+    int simtime = 1;
+
+    environment::event_generator generator(ngroups);
+
+    environment::continousdistribution neuro_dist(nprocs, rank, ncells);
+
+    double mean = static_cast<double>(simtime) / static_cast<double>(nspikes);
+    double lambda = 1.0 / static_cast<double>(mean * nprocs);
+
+    environment::generate_events_kai(generator.begin(),
+                    simtime, ngroups, rank, nprocs, lambda, &neuro_dist);
+
+}
+
+
+
 /**
  * Tests fixed_step function of the pool classi for one mindelay
  */
@@ -221,13 +251,21 @@ BOOST_AUTO_TEST_CASE(pool_fixed_step_1mindelay){
     int simtime = mindelay;
 
     //create the test environment
-    environment::presyn_maker presyns(ncells, fanin);
+    environment::presyn_maker presyns(fanin);
     spike::spike_interface spike(nprocs);
 
+    environment::continousdistribution neuro_dist(nprocs, rank, ncells);
+
     //generate
-    presyns(nprocs, ngroups, rank);
-    environment::event_generator generator(nspikes, simtime, ngroups,
-    rank, nprocs, ncells);
+    presyns(rank, &neuro_dist);
+    environment::event_generator generator(ngroups);
+
+    double mean = static_cast<double>(simtime) / static_cast<double>(nspikes);
+    double lambda = 1.0 / static_cast<double>(mean * nprocs);
+
+    environment::generate_events_kai(generator.begin(),
+                    simtime, ngroups, rank, nprocs, lambda, &neuro_dist);
+
     int sum_events = 0;
     for(int i = 0; i < ngroups; ++i){
         sum_events += generator.get_size(i);
@@ -255,14 +293,21 @@ BOOST_AUTO_TEST_CASE(pool_send_ite){
     int simtime = 100;
     int rank = 0;
 
+    environment::continousdistribution neuro_dist(nprocs, rank, ncells);
+
     //create the test environment
-    environment::presyn_maker presyns(ncells, fanin);
+    environment::presyn_maker presyns(fanin);
     spike::spike_interface spike(nprocs);
 
     //generate
-    presyns(nprocs, ngroups, rank);
-    environment::event_generator generator(nspikes, simtime,
-    ngroups, rank, nprocs, ncells);
+    presyns(rank, &neuro_dist);
+    environment::event_generator generator(ngroups);
+
+    double mean = static_cast<double>(simtime) / static_cast<double>(nspikes);
+    double lambda = 1.0 / static_cast<double>(mean * nprocs);
+
+    environment::generate_events_kai(generator.begin(),
+                    simtime, ngroups, rank, nprocs, lambda, &neuro_dist);
 
     int sum_events = 0;
     for(int i = 0; i < ngroups; ++i){

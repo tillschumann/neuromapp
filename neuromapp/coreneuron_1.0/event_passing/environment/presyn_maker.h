@@ -29,28 +29,29 @@
 #include <map>
 
 #include "coreneuron_1.0/event_passing/environment/generator.h"
+#include "coreneuron_1.0/event_passing/environment/neurondistribution.h"
 
 namespace environment {
 
 typedef std::vector<int> presyn;
-
+enum degree {fixedindegree, fixedoutdegree};
 /** presyn_maker
  * creates input and output presyns required for spike exchange
  */
 class presyn_maker {
 private:
-    int n_cells_;
-    int fan_in_;
+    int fan_;
+    degree degree_;
     std::map<int, presyn> inputs_;
     std::map<int, presyn> outputs_;
 public:
     /** \fn presyn_maker(int ncells, int fanin)
      *  \brief creates the presyn_maker and sets member variables
      *  \param ncells the total number of cells in the simulation
-     *  \param fanin the number of incoming connections per cell
+     *  \param fan the number of in/outcoming connections per cell
      */
-    explicit presyn_maker(int ncells=0, int fanin=0):
-    n_cells_(ncells), fan_in_(fanin){}
+    explicit presyn_maker(int fan=0, degree fd=fixedindegree):
+    fan_(fan), degree_(fd){}
 
     /** \fn void operator()(int nprocs, int ngroups, int rank)
      *  \brief generates both the input and output presyns.
@@ -58,7 +59,7 @@ public:
      *  \param ngroups the number of cell groups per process
      *  \param rank the rank of the current process
      */
-    void operator()(int nprocs, int ngroups, int rank);
+    void operator()(int rank, neurondistribution* neuron_dist);
 
 //GETTERS
 

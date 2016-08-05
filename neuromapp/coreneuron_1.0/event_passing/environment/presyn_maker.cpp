@@ -12,35 +12,59 @@
 
 namespace environment {
 
-void presyn_maker::operator()(int nprocs, int ngroups, int rank){
-    //assign input and output gid's
-    assert(nprocs >= 1);
-
-    //used for random presyn and netcon selection
-    boost::mt19937 rng(time(NULL) + rank);
-    boost::random::uniform_int_distribution<> uni_d(0, n_cells_);
-
-    int cells_per = n_cells_ / nprocs;
-    int first_cell = cells_per * rank;
-    int cur;
-
+void presyn_maker::operator()(int rank, neurondistribution* neuron_dist){
     //create local presyns with empty vectors
-    for(int i = 0; i < cells_per; ++i){
-        outputs_[first_cell + i].reserve(fan_in_);
+    for(int i = 0; i < neuron_dist->getlocalcells(); ++i){
+        const int gid = neuron_dist->local2global(i);
+        outputs_[gid];
     }
-    //foreach gid, select srcs
-    for(int i = 0; i < cells_per; ++i){
-        for(int j = 0; j < fan_in_; ++j){
-            cur = uni_d(rng);
-            //local GID
-            if(cur >= first_cell && cur < (first_cell + cells_per)){
-                //add self to src gid
-                outputs_[cur].push_back(first_cell + i);
+
+    if (degree_==fixedindegree) {
+        //used for random presyn and netcon selection
+        boost::mt19937 rng(time(NULL) + rank);
+        boost::random::uniform_int_distribution<> uni_d(0, neuron_dist->getglobalcells()-1);
+
+        //foreach gid, select srcs
+        for(int i = 0; i < neuron_dist->getlocalcells(); ++i){
+            for(int j = 0; j < fan_; ++j){
+                const int cur = uni_d(rng);
+                //local GID
+                if(neuron_dist->isLocal(cur)){
+                    //add self to src gid
+                    const int g_i = neuron_dist->local2global(i);
+                    outputs_[cur].push_back(g_i);
+                }
+                //remote GID
+                else{
+                    //add self to input presyn for gid
+                    const int g_i = neuron_dist->local2global(i);
+                    inputs_[cur].push_back(g_i);
+                }
             }
-            //remote GID
-            else{
-                //add self to input presyn for gid
-                inputs_[cur].push_back(first_cell + i);
+        }
+    }
+    else if (degree_==fixedoutdegree) {
+        //used for random presyn and netcon selection
+        //seed has to be fixed across the ranks to generate proper fixed out degree
+        boost::mt19937 rng(15623);
+        boost::random::uniform_int_distribution<> uni_d(0, neuron_dist->getglobalcells()-1);
+
+        for(int cur = 0; cur < neuron_dist->getglobalcells(); ++cur){
+            for(int j = 0; j < fan_; ++j){
+                int picked = uni_d(rng);
+                //connect if target neuron is local
+                //only one rank stores the connection
+                if(neuron_dist->isLocal(picked)) {
+                    if(neuron_dist->isLocal(cur)){
+                        //add self to src gid
+                        outputs_[cur].push_back(picked);
+                    }
+                    //remote GID
+                    else{
+                        //add self to input presyn for gid
+                        inputs_[cur].push_back(picked);
+                    }
+                }
             }
         }
     }

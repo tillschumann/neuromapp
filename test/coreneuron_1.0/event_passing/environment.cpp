@@ -32,6 +32,7 @@
 #include <ctime>
 
 #include "coreneuron_1.0/event_passing/environment/generator.h"
+#include "coreneuron_1.0/event_passing/environment/event_generators.hpp"
 #include "coreneuron_1.0/event_passing/environment/presyn_maker.h"
 
 /**
@@ -45,7 +46,7 @@ BOOST_AUTO_TEST_CASE(presyns_constructor){
     int ncells = uniform(rng);
     int fanin = ncells / 2 + 1;
     int netcons = uniform(rng);
-    environment::presyn_maker p2(ncells, fanin);
+    environment::presyn_maker p2(fanin);
     //previously had tests here
 }
 
@@ -59,12 +60,15 @@ BOOST_AUTO_TEST_CASE(presyns_functor_test){
     //passed into the find function, but not used
     int ncells = uniform(rng);
     int fanin = ncells;
-    environment::presyn_maker p(ncells, fanin);
+    environment::presyn_maker p(fanin);
     int nprocs = 3;
     int ngroups = 3;
     int rank = 0;
+
+    environment::continousdistribution neuro_dist(nprocs, rank, ncells);
+
     //create presyns
-    p(nprocs, ngroups, rank);
+    p(rank, &neuro_dist);
 
     int cellsper = ncells / nprocs;
 
@@ -103,10 +107,16 @@ BOOST_AUTO_TEST_CASE(presyns_find_test){
     int ngroups = 3;
     int rank = 0;
     int fanin = ncells;
-    environment::presyn_maker p(ncells, fanin);
-    p(nprocs, ngroups, rank);
 
-    int cellsper = ncells / nprocs;
+    environment::continousdistribution neuro_dist(nprocs, rank, ncells);
+
+    environment::presyn_maker p(fanin);
+    p(rank, &neuro_dist);
+
+    const int offset = ncells % nprocs;
+    const bool hasonemore = offset > rank;
+    int cellsper = ncells / nprocs + hasonemore;
+
 
     bool valid_input = true;
     bool valid_output = true;
@@ -128,10 +138,54 @@ BOOST_AUTO_TEST_CASE(presyns_find_test){
     BOOST_CHECK(valid_output);
 }
 
+BOOST_AUTO_TEST_CASE(presyns_check_neuron_dist){
+    boost::mt19937 rng(time(NULL));
+    boost::random::uniform_int_distribution<> uniform(50, 100);
+    int ncells = uniform(rng);
+    int nprocs = 5;
+    int ngroups = 3;
+    int fanin = ncells;
+
+    std::vector<int> stats_rankhascell(ncells,0);
+    std::vector<int> stats_cellsonrank(nprocs,0);
+
+
+    for (int rank=0; rank< nprocs; rank++){
+
+        environment::continousdistribution neuro_dist(nprocs, rank, ncells);
+        environment::presyn_maker p(fanin);
+        p(rank, &neuro_dist);
+
+        for (int cell=0; cell<ncells; cell++) {
+            const environment::presyn* input_ptr = p.find_output(cell);
+            if (input_ptr!=NULL) { //neuron is local
+                stats_rankhascell[cell]++;
+                stats_cellsonrank[rank]++;
+            }
+        }
+    }
+
+
+    for (int cell=0; cell<ncells; cell++) {
+        //std::cout << stats_rankhascell[cell] << std::endl;
+        BOOST_REQUIRE_EQUAL(stats_rankhascell[cell], 1);
+    }
+
+    int sum_cellsonrank = std::accumulate(stats_cellsonrank.begin(), stats_cellsonrank.end(), 0);
+    BOOST_REQUIRE_EQUAL(sum_cellsonrank, ncells);
+
+    int max_cellsonrank = *std::max_element(stats_cellsonrank.begin(), stats_cellsonrank.end());
+    int min_cellsonrank = *std::min_element(stats_cellsonrank.begin(), stats_cellsonrank.end());
+
+    int diff = max_cellsonrank - min_cellsonrank;
+
+    BOOST_CHECK(diff == 0 || diff == 1);
+}
+
 /**
- * Test constructor of event_generator class
+ * Test generation of events for kai_generator
  */
-BOOST_AUTO_TEST_CASE(generator_constructor){
+BOOST_AUTO_TEST_CASE(generator_kai){
     boost::mt19937 rng(time(NULL));
     boost::random::uniform_int_distribution<> uniform(50, 100);
     int nspike = uniform(rng);
@@ -142,11 +196,19 @@ BOOST_AUTO_TEST_CASE(generator_constructor){
     int rank = 0;
     int fanin = ncells;
 
+
+    environment::continousdistribution neuro_dist(nprocs, rank, ncells);
     //generate events
-    environment::presyn_maker p(ncells, fanin);
-    p(nprocs, ngroups, rank);
-    environment::event_generator generator(nspike, simtime, ngroups,
-    rank, nprocs, ncells);
+    environment::presyn_maker p(fanin);
+    p(rank, &neuro_dist);
+
+    environment::event_generator generator(ngroups);
+
+    double mean = static_cast<double>(simtime) / static_cast<double>(nspike);
+    double lambda = 1.0 / static_cast<double>(mean * ncells);
+
+    environment::generate_events_kai(generator.begin(),
+                            simtime, ngroups, rank, nprocs, lambda, &neuro_dist);
 
     environment::gen_event ev;
     BOOST_CHECK(!generator.empty(0));
@@ -174,6 +236,108 @@ BOOST_AUTO_TEST_CASE(generator_constructor){
     BOOST_CHECK(valid_gid);
 }
 
+BOOST_AUTO_TEST_CASE(generator_poisson){
+    boost::mt19937 rng(time(NULL));
+    boost::random::uniform_int_distribution<> uniform(50, 100);
+    int nspike = uniform(rng);
+    int ncells = 10;
+    int nprocs = 1;
+    int ngroups = 1;
+    int simtime = 100;
+    int rank = 0;
+    int fanin = ncells;
+
+    environment::continousdistribution neuro_dist(nprocs, rank, ncells);
+    //generate events
+    environment::presyn_maker p(fanin);
+    p(rank, &neuro_dist);
+
+    environment::event_generator generator(ngroups);
+
+    double mean = static_cast<double>(simtime) / static_cast<double>(nspike);
+    double lambda = 1.0 / static_cast<double>(mean * ncells);
+
+    environment::generate_poisson_events(generator.begin(),
+                            simtime, ngroups, rank, nprocs, lambda, &neuro_dist);
+
+    environment::gen_event ev;
+    BOOST_CHECK(!generator.empty(0));
+
+    //check that all generated events have valid time and presyns
+    bool valid_time = true;
+    bool valid_gid = true;
+    int gid = 0;
+    while(!generator.empty(0)){
+        ev = generator.pop(0);
+        //time
+        if(ev.second > simtime || ev.second < 0){
+            valid_time = false;
+            std::cerr<<"Error: invalid time: "<<ev.second<<std::endl;
+            break;
+        }
+        gid = ev.first;
+        if(!p.find_output(gid)){
+            std::cerr<<"Error: gid not found: "<<gid<<std::endl;
+            valid_gid = false;
+            break;
+        }
+    }
+    BOOST_CHECK(valid_time);
+    BOOST_CHECK(valid_gid);
+}
+
+BOOST_AUTO_TEST_CASE(generator_uniform){
+    boost::mt19937 rng(time(NULL));
+    boost::random::uniform_int_distribution<> uniform(50, 100);
+    int nspike = uniform(rng);
+    int ncells = 10;
+    int nprocs = 1;
+    int ngroups = 1;
+    int simtime = 100;
+    int rank = 0;
+    int fanin = ncells;
+
+
+    environment::continousdistribution neuro_dist(nprocs, rank, ncells);
+    //generate events
+    environment::presyn_maker p(fanin);
+    p(rank, &neuro_dist);
+
+    environment::event_generator generator(ngroups);
+
+    double firing_freq = static_cast<double>(nspike) / static_cast<double>(simtime*ncells);
+    int firing_interval = static_cast<int>(1.0 / firing_freq);
+
+    environment::generate_poisson_events(generator.begin(),
+                            simtime, ngroups, rank, nprocs, firing_interval, &neuro_dist);
+
+    environment::gen_event ev;
+    BOOST_CHECK(!generator.empty(0));
+
+    //check that all generated events have valid time and presyns
+    bool valid_time = true;
+    bool valid_gid = true;
+    int gid = 0;
+    while(!generator.empty(0)){
+        ev = generator.pop(0);
+        //time
+        if(ev.second > simtime || ev.second < 0){
+            valid_time = false;
+            std::cerr<<"Error: invalid time: "<<ev.second<<std::endl;
+            break;
+        }
+        gid = ev.first;
+        if(!p.find_output(gid)){
+            std::cerr<<"Error: gid not found: "<<gid<<std::endl;
+            valid_gid = false;
+            break;
+        }
+    }
+    BOOST_CHECK(valid_time);
+    BOOST_CHECK(valid_gid);
+}
+
+
 /**
  * Test the compare less than/equals function of event_generator class
  */
@@ -185,9 +349,16 @@ BOOST_AUTO_TEST_CASE(generator_compare_top_lte){
     int simtime = 100;
     int rank = 0;
 
+    environment::continousdistribution neuro_dist(nprocs, rank, ncells);
+
     //generate events
-    environment::event_generator generator(nspike, simtime,
-    ngroups, rank, nprocs, ncells);
+    environment::event_generator generator(ngroups);
+
+    double mean = static_cast<double>(simtime) / static_cast<double>(nspike);
+    double lambda = 1.0 / static_cast<double>(mean * nprocs);
+
+    environment::generate_events_kai(generator.begin(),
+                             simtime, ngroups, rank, nprocs, lambda, &neuro_dist);
 
     bool greater_than_min = true;
     bool less_than_max = true;
