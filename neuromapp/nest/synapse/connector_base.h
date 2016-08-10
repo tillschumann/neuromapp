@@ -87,8 +87,8 @@ public:
 
 private:
   double t_lastspike_;
- // folly::small_vector<T,8> v;
-  folly::fbvector<T> v;
+  folly::small_vector<T,8> v;
+ // folly::fbvector<T> v;
  // std::vector<T> v;
 };
 } //end namespace
