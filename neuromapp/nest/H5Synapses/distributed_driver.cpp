@@ -52,7 +52,6 @@ int main(int argc, char* argv[]) {
     const int ncells = atoi(argv[2]);
     std::string syn_file(argv[3]);
 
-
     //load kernel environment
     nest::kernel_env kenv;
 
@@ -72,13 +71,15 @@ int main(int argc, char* argv[]) {
 
     gettimeofday(&start, NULL);
 
-
     H5Synapses h5synapses;
     h5synapses.set_filename(syn_file);
     std::vector<std::string> props;
     props.push_back("delay");
     props.push_back("weight");
+    props.push_back("U0");
     h5synapses.set_properties(props);
+
+    h5synapses.set_num_synapses(524288*5);
 
     GIDCollection gids;
     h5synapses.set_mapping(gids);

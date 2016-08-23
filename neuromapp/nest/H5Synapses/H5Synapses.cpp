@@ -11,6 +11,7 @@
 #include <ctime>
 #include <sys/time.h>
 #include <stdio.h>
+#include <queue>
 
 #ifdef IS_BLUEGENE_Q
 #include <spi/include/kernel/memory.h>
@@ -56,7 +57,7 @@ H5Synapses::singleConnect( const int& thrd, NESTSynapseRef synapse,
 }
 
 uint64_t
-H5Synapses::threadConnectNeurons( uint64_t& n_conSynapses )
+H5Synapses::threadConnectNeurons( NESTSynapseList& synapses, uint64_t& n_conSynapses )
 {
 #ifdef SCOREP_COMPILE
   SCOREP_USER_REGION( "connect", SCOREP_USER_REGION_TYPE_FUNCTION )
@@ -103,9 +104,9 @@ H5Synapses::threadConnectNeurons( uint64_t& n_conSynapses )
 
       // help variable to only connect subset if stride is larger than 1
       int stride_c = 0;
-      for ( int i = 0; i < synapses_.size(); i++ )
+      for ( int i = 0; i < synapses.size(); i++ )
       {
-        const nest::index target = synapses_[ i ].target_neuron_;
+        const nest::index target = synapses[ i ].target_neuron_;
 
         // synapse belongs to local thread, connect function is thread safe for
         // this condition
@@ -114,7 +115,7 @@ H5Synapses::threadConnectNeurons( uint64_t& n_conSynapses )
           stride_c++;
           // only connect each stride ones
           if ( stride_c == 1 )
-            singleConnect( thrd, synapses_[ i ], target, n_conSynapses_tmp );
+            singleConnect( thrd, synapses[ i ], target, n_conSynapses_tmp );
           if ( stride_c >= stride_ )
             stride_c = 0;
         }
@@ -134,7 +135,7 @@ H5Synapses::threadConnectNeurons( uint64_t& n_conSynapses )
  *  Aftewards all synapses are on their target nodes
  */
 CommunicateSynapses_Status
-H5Synapses::CommunicateSynapses()
+H5Synapses::CommunicateSynapses( NESTSynapseList& synapses )
 {
 #ifdef SCOREP_COMPILE
   SCOREP_USER_REGION( "alltoall", SCOREP_USER_REGION_TYPE_FUNCTION )
@@ -155,17 +156,17 @@ H5Synapses::CommunicateSynapses()
   // use iterator instead
   // uint32_t* send_buffer = new
   // uint32_t[synapses_.size()*synapses_.entry_size_int()];
-  mpi_buffer<int> send_buffer(synapses_.size() * synapses_.sizeof_entry()/sizeof(int));
+  mpi_buffer<int> send_buffer(synapses.size() * synapses.sizeof_entry()/sizeof(int));
 
   // store number of int values per entry
   int entriesadded;
-  for ( uint32_t i = 0; i < synapses_.size(); i++ )
+  for ( uint32_t i = 0; i < synapses.size(); i++ )
   {
     // serialize entry
-    entriesadded = synapses_[ i ].serialize( send_buffer );
+    entriesadded = synapses[ i ].serialize( send_buffer );
 
     // save number of values added
-    sendcounts[ synapses_[ i ].node_id_ ] += entriesadded;
+    sendcounts[ synapses[ i ].node_id_ ] += entriesadded;
   }
 
   MPI_Alltoall(
@@ -180,7 +181,7 @@ H5Synapses::CommunicateSynapses()
   }
 
   // use number of values per entry to determine number of recieved synapses
-  const int32_t recv_synpases_count = rdispls[ num_processes ] / (synapses_.sizeof_entry()/sizeof(int));
+  const int32_t recv_synpases_count = rdispls[ num_processes ] / (synapses.sizeof_entry()/sizeof(int));
 
   // allocate recv buffer
   mpi_buffer<int> recvbuf( rdispls[ num_processes ], true );
@@ -196,11 +197,11 @@ H5Synapses::CommunicateSynapses()
     MPI_COMM_WORLD );
 
   // fill entries in synapse list
-  synapses_.resize( recv_synpases_count );
+  synapses.resize( recv_synpases_count );
 
   // fill synapse list with values from buffer
-  for ( uint32_t i = 0; i < synapses_.size(); i++ )
-    synapses_[ i ].deserialize( recvbuf );
+  for ( uint32_t i = 0; i < synapses.size(); i++ )
+      synapses[ i ].deserialize( recvbuf );
 
   // return status
   if ( sdispls[ num_processes ] > 0 && rdispls[ num_processes ] > 0 )
@@ -217,7 +218,7 @@ H5Synapses::CommunicateSynapses()
  *
  */
 H5Synapses::H5Synapses()
-  : stride_( 1 ), num_syanpses_per_process_(524288), kernel_(nest::kernel().vp_manager.get_max_threads())
+  : stride_( 1 ), num_syanpses_per_process_(524288), last_total_synapse_(-1), kernel_(nest::kernel().vp_manager.get_max_threads())
 {
   // init lock token
   omp_init_lock( &tokenLock_ );
@@ -232,44 +233,44 @@ H5Synapses::~H5Synapses()
 }
 
 void
-H5Synapses::freeSynapses()
+H5Synapses::freeSynapses( NESTSynapseList& synapses )
 {
 #ifdef SCOREP_COMPILE
   SCOREP_USER_REGION( "free", SCOREP_USER_REGION_TYPE_FUNCTION )
 #endif
-  synapses_.clear();
+  synapses.clear();
 }
 
 void
-H5Synapses::integrateMapping()
+H5Synapses::integrateMapping( NESTSynapseList& synapses )
 {
 #ifdef SCOREP_COMPILE
   SCOREP_USER_REGION( "det", SCOREP_USER_REGION_TYPE_FUNCTION )
 #endif
 // integrate mapping from gidcollection
 #pragma omp parallel for
-  for ( int i = 0; i < synapses_.size(); i++ )
-    synapses_[ i ].integrateMapping( mapping_ );
+  for ( int i = 0; i < synapses.size(); i++ )
+    synapses[ i ].integrateMapping( mapping_ );
 }
 
 typedef std::pair< int, int > intpair;
 bool first_less( const intpair& l, const intpair& r ) { return l.first < r.first; }
 
 void
-H5Synapses::sort()
+H5Synapses::sort( NESTSynapseList & synapses )
 {
 #ifdef SCOREP_COMPILE
     SCOREP_USER_REGION( "sort", SCOREP_USER_REGION_TYPE_FUNCTION )
 #endif
 
       // only needed if there are at least two elements
-    if ( synapses_.size() > 1 )
+    if ( synapses.size() > 1 )
     {
         // arg sort
-        std::vector< intpair > v_idx( synapses_.size() );
+        std::vector< intpair > v_idx( synapses.size() );
         for ( int i = 0; i < v_idx.size(); i++ )
         {
-            v_idx[ i ].first = synapses_.node_id_[ i ];
+            v_idx[ i ].first = synapses.node_id_[ i ];
             v_idx[ i ].second = i;
         }
         std::sort( v_idx.begin(), v_idx.end(), first_less);
@@ -277,24 +278,24 @@ H5Synapses::sort()
         // create buf object
         uint32_t source_neuron_tmp;
         uint32_t node_id_tmp;
-        std::vector< char > pool_tmp( synapses_.sizeof_entry() );
+        std::vector< char > pool_tmp( synapses.sizeof_entry() );
         NESTSynapseRef buf( source_neuron_tmp,
                 node_id_tmp,
-                synapses_.num_params_,
+                synapses.num_params_,
                 &pool_tmp[0] );
 
         //apply reordering based on v_idx[:].second
         size_t i, j, k;
-        for(i = 0; i < synapses_.size(); i++){
+        for(i = 0; i < synapses.size(); i++){
             if(i != v_idx[ i ].second){
-                buf = synapses_[i];
+                buf = synapses[i];
                 k = i;
                 while(i != (j = v_idx[ k ].second)){
-                    synapses_[k] = synapses_[j];
+                    synapses[k] = synapses[j];
                     v_idx[ k ].second = k;
                     k = j;
                 }
-                synapses_[k] = buf;
+                synapses[k] = buf;
                 v_idx[ k ].second = k;
             }
         }
@@ -325,48 +326,70 @@ H5Synapses::import()
 
   struct timeval start_all, end_all, start_load, end_load;
 
-  // load datasets from files
-  // until end of file
-  while ( !synloader.eof() )
-  {
-     gettimeofday(&start_all, NULL);
-    {
-#ifdef SCOREP_COMPILE
+  std::queue< NESTSynapseList* > synapse_queue;
+
+  // add all synapses into queue
+  while ( !synloader.eof() ) {
+      #ifdef SCOREP_COMPILE
       SCOREP_USER_REGION_BEGIN( "load", SCOREP_USER_REGION_TYPE_FUNCTION )
 #endif
-      gettimeofday(&start_load, NULL);
-      synloader.iterateOverSynapsesFromFiles( synapses_ );
-      gettimeofday(&end_load, NULL);
-    }
 
-    integrateMapping();
-    sort();
-    //com_status = CommunicateSynapses();
+     NESTSynapseList* newone = new NESTSynapseList;
+     newone->set_properties(synapses_.prop_names_);
 
-    // update stats
-    n_memSynapses += synapses_.size();
+     //gettimeofday(&start_all, NULL);
 
-    threadConnectNeurons( n_conSynapses );
+      //gettimeofday(&start_load, NULL);
+      synloader.iterateOverSynapsesFromFiles( *newone );
+      //gettimeofday(&end_load, NULL);
 
-    freeSynapses();
+      synapse_queue.push(newone);
 
-    gettimeofday(&end_all, NULL);
-    
-    long long t_all = (1000 * (end_all.tv_sec - start_all.tv_sec))
-        + ((end_all.tv_usec - start_all.tv_usec) / 1000);
-    long long t_load = (1000 * (end_load.tv_sec - start_load.tv_sec))
-        + ((end_load.tv_usec - start_load.tv_usec) / 1000);
-    std::cout << "rank=" << nest::kernel().mpi_manager.get_rank() << "\tmem_cons=" << n_memSynapses << "\tt_all=" << t_all << "ms\tt_load=" << t_load << "ms" << std::endl;
+      std::cout << "pushed to queue" << "\n";
   }
+
+  //iterate over queue and connect connections in NEST data structure
+    while (!synapse_queue.empty()) {
+
+
+
+        NESTSynapseList* synapses = synapse_queue.front();
+        synapse_queue.pop();
+
+        integrateMapping(*synapses);
+        sort(*synapses);
+        //com_status = CommunicateSynapses();
+
+        // update stats
+        n_memSynapses += synapses->size();
+
+        threadConnectNeurons( *synapses, n_conSynapses );
+
+        //freeSynapses(*synapses);
+
+        delete synapses;
+
+    
+        /*gettimeofday(&end_all, NULL);
+
+        long long t_all = (1000 * (end_all.tv_sec - start_all.tv_sec))
+            + ((end_all.tv_usec - start_all.tv_usec) / 1000);
+        long long t_load = (1000 * (end_load.tv_sec - start_load.tv_sec))
+            + ((end_load.tv_usec - start_load.tv_usec) / 1000);
+        std::cout << "rank=" << nest::kernel().mpi_manager.get_rank() << "\tmem_cons=" << n_memSynapses << "\tt_all=" << t_all << "ms\tt_load=" << t_load << "ms" << std::endl;
+        */
+        std::cout << "connected" << "\n";
+    }
 
   // recieve datasets from other nodes
   // necessary because datasets may be distributed unbalanced
   while ( com_status != NOCOM )
   {
-    com_status = CommunicateSynapses();
-    n_memSynapses += synapses_.size();
-    threadConnectNeurons( n_conSynapses );
-    freeSynapses();
+      NESTSynapseList synapse_recv;
+    com_status = CommunicateSynapses( synapse_recv );
+    n_memSynapses += synapse_recv.size();
+    threadConnectNeurons( synapse_recv, n_conSynapses );
+    //freeSynapses( synapse_recv );
   }
 
   // return values
@@ -384,6 +407,10 @@ void H5Synapses::set_filename(const std::string& path)
 void H5Synapses::set_properties(const std::vector<std::string>& prop_names)
 {
     synapses_.set_properties(prop_names);
+}
+void H5Synapses::set_num_synapses(const long& num_synapses)
+{
+    last_total_synapse_= num_synapses;
 }
 void H5Synapses::set_mapping(const GIDCollection& gids)
 {

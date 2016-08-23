@@ -7,7 +7,7 @@
 #include <omp.h>
 
 //#include "H5SynMEMPedictor.h"
-#include "H5SynapseLoader_columns.h"
+#include "H5SynapseLoader.h"
 #include "kernels.h"
 
 #ifndef H5Synapses_CLASS
@@ -49,13 +49,13 @@ private:
           const nest::index t_gid,
     uint64_t& n_conSynapses );
 
-  uint64_t threadConnectNeurons( uint64_t& n_conSynapses );
+  uint64_t threadConnectNeurons( NESTSynapseList& synapses, uint64_t& n_conSynapses );
 
-  void freeSynapses();
-  CommunicateSynapses_Status CommunicateSynapses();
+  void freeSynapses( NESTSynapseList& synapses );
+  CommunicateSynapses_Status CommunicateSynapses( NESTSynapseList& synapses );
 
-  void sort();
-  void integrateMapping();
+  void sort( NESTSynapseList& synapses );
+  void integrateMapping( NESTSynapseList& synapses );
 
 
   void addKernel( std::string name, TokenArray params );
@@ -69,6 +69,7 @@ public:
   void set_filename(const std::string& path);
   void set_properties(const std::vector<std::string>& prop_names);
   void set_mapping(const GIDCollection& gids);
+  void set_num_synapses(const long& num_synapses);
 };
 
 #endif

@@ -307,7 +307,7 @@ public:
      * Move file pointer to for next function call
      *
      */
-    void iterateOverSynapsesFromFiles( NESTSynapseList & synapses )
+    void iterateOverSynapsesFromFiles( NESTSynapseList& synapses )
     {
       uint64_t private_offset = fixed_num_syns_ * RANK + global_offset_;
       global_offset_ += fixed_num_syns_ * NUM_PROCESSES;

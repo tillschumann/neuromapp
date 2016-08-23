@@ -35,8 +35,6 @@
     #include <omp.h>
 #endif
 
-#include <mpix.h>
-
 #include "hdf5/H5SynapseLoader.h"
 
 
@@ -65,10 +63,7 @@ int main(int argc, char* argv[]) {
             n_SynapsesInDatasets,
             fixed_num_syns);
     
-    //INFO section
-    std::cout << "rank=" << rank << " io-distance=" << MPIX_IO_distance() << std::endl;  
     gettimeofday(&start, NULL);
-
     std::vector<int> buffer;
 
     struct timeval it_start, it_end;

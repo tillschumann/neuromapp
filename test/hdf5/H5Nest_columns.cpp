@@ -24,6 +24,7 @@
  */
 
 #define BOOST_TEST_MODULE SynapseDistriTest
+
 #include <boost/test/unit_test.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
@@ -34,6 +35,7 @@
 
 #include "utils/error.h"
 
+#include "neuromapp/hdf5/helper.h"
 #include "test/tools/mpi_helper.h"
 
 BOOST_AUTO_TEST_CASE(open_file)
@@ -49,14 +51,14 @@ BOOST_AUTO_TEST_CASE(open_file)
  
     std::vector< std::string > datasets;
     datasets.push_back("target");     
-    H5SynapsesLoader loader(H5NEST_COLUMN_TESTFILE, datasets,
+    H5SynapsesLoader loader(h5mapp::hdf5_testdata_datasets(), datasets,
       n_readSynapses,
       n_SynapsesInDatasets,
       fixed_num_syns);
 
     size_t num_syns = loader.getNumberOfSynapses();
 
-    BOOST_CHECK_EQUAL(num_syns, 128);
+    BOOST_CHECK_EQUAL(num_syns, 126);
 }
 
 
@@ -75,7 +77,7 @@ BOOST_AUTO_TEST_CASE(open_num_syns)
     datasets.push_back("target");
     datasets.push_back("weight");
       
-    H5SynapsesLoader loader(H5NEST_COLUMN_TESTFILE, datasets,
+    H5SynapsesLoader loader(h5mapp::hdf5_testdata_datasets(), datasets,
       n_readSynapses,
       n_SynapsesInDatasets,
       fixed_num_syns);
@@ -88,7 +90,7 @@ BOOST_AUTO_TEST_CASE(open_num_syns)
 
        BOOST_CHECK_EQUAL((n_readSynapses-old_n_readSynapses)*datasets.size(), buffer.size()));
        for (int j=0; j<buffer.size()/datasets.size(); j++) {
-           BOOST_CHECK( 0 <= buffer[j] && buffer[j] <= 75000000 ); // valid target range
+           BOOST_CHECK( 500 <= buffer[j] && buffer[j] <= 700 ); // valid target range
            BOOST_CHECK( 0.2 <= reinterpret_cast<float>(buffer[j+1]) && reinterpret_cast<float>(buffer[j+1]) <= 50. ); // valid weight range
        }
        old_n_readSynapses = n_readSynapses;
@@ -106,6 +108,43 @@ BOOST_AUTO_TEST_CASE(open_num_syns)
 
     if (rank==0)
         BOOST_CHECK_EQUAL(all_n_readSynapses, n_SynapsesInDatasets);
+}
+
+BOOST_AUTO_TEST_CASE(open_num_syns)
+{
+    int num_processes;
+    int rank;
+    MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    uint64_t n_readSynapses=0;
+    uint64_t n_SynapsesInDatasets=0;
+    uint64_t fixed_num_syns=3;
+
+    std::vector< std::string > datasets;
+    datasets.push_back("target");
+    datasets.push_back("weight");
+
+    H5SynapsesLoader loader(h5mapp::hdf5_testdata_datasets(), datasets,
+      n_readSynapses,
+      n_SynapsesInDatasets,
+      fixed_num_syns);
+
+    while( !loader.eof() ) {
+       std::vector< int > buffer;
+       loader.iterateOverSynapsesFromFiles( buffer );
+
+       for (int i=0; i<fixed_num_syns; i++) {
+           int target = reinterpret_cast< int >( buffer[i*datasets.size()+0] );
+           float weight = reinterpret_cast< float >( buffer[i*datasets.size()+1] );
+
+           // test relation between weight and target in test h5 file
+           BOOST_CHECK_CLOSE( weight, static_cast<float>(target+630-504), 0.00001 );
+       }
+    }
+    //check if total number of values fit
+    BOOST_CHECK_EQUAL(126, n_SynapsesInDatasets);
+    BOOST_CHECK_EQUAL(126, n_readSynapses/num_processes);
 }
 
 
