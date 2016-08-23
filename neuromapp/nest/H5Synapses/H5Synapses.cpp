@@ -248,7 +248,7 @@ H5Synapses::integrateMapping( NESTSynapseList& synapses )
   SCOREP_USER_REGION( "det", SCOREP_USER_REGION_TYPE_FUNCTION )
 #endif
 // integrate mapping from gidcollection
-#pragma omp parallel for
+//#pragma omp parallel for
   for ( int i = 0; i < synapses.size(); i++ )
     synapses[ i ].integrateMapping( mapping_ );
 }
@@ -329,6 +329,11 @@ H5Synapses::import()
   std::queue< NESTSynapseList* > synapse_queue;
 
   // add all synapses into queue
+ #pragma omp parallel  
+ {
+ std::cout << "threads:" << omp_get_num_threads() << "\n";
+ #pragma omp single
+ {
   while ( !synloader.eof() ) {
       #ifdef SCOREP_COMPILE
       SCOREP_USER_REGION_BEGIN( "load", SCOREP_USER_REGION_TYPE_FUNCTION )
@@ -340,25 +345,36 @@ H5Synapses::import()
      //gettimeofday(&start_all, NULL);
 
       //gettimeofday(&start_load, NULL);
-      synloader.iterateOverSynapsesFromFiles( *newone );
+      
+      H5View dataspace_view;
+      synloader.iterateOverSynapsesFromFiles( *newone, dataspace_view );
       //gettimeofday(&end_load, NULL);
+      
+      #pragma omp task firstprivate(newone, dataspace_view)
+      {
+        synloader.integrateSourceNeurons( *newone, dataspace_view );
+        integrateMapping(*newone);
+        sort(*newone);
 
+        //#pragma omp critical (commicatesynapses)
+        //CommunicateSynapses(*newone);
+      }
       synapse_queue.push(newone);
-
+      
       std::cout << "pushed to queue" << "\n";
+  }
+  #pragma omp taskwait
+  }
   }
 
   //iterate over queue and connect connections in NEST data structure
     while (!synapse_queue.empty()) {
-
-
-
         NESTSynapseList* synapses = synapse_queue.front();
         synapse_queue.pop();
 
-        integrateMapping(*synapses);
-        sort(*synapses);
-        //com_status = CommunicateSynapses();
+        //integrateMapping(*synapses);
+        //sort(*synapses);
+        com_status = CommunicateSynapses(*synapses);
 
         // update stats
         n_memSynapses += synapses->size();
@@ -383,14 +399,14 @@ H5Synapses::import()
 
   // recieve datasets from other nodes
   // necessary because datasets may be distributed unbalanced
-  while ( com_status != NOCOM )
+  /*while ( com_status != NOCOM )
   {
       NESTSynapseList synapse_recv;
     com_status = CommunicateSynapses( synapse_recv );
     n_memSynapses += synapse_recv.size();
     threadConnectNeurons( synapse_recv, n_conSynapses );
     //freeSynapses( synapse_recv );
-  }
+  }*/
 
   // return values
   /*def< long >( dout, "readSynapses", n_readSynapses );

@@ -21,7 +21,7 @@ struct H5View
   hsize_t count[ 1 ];
   hsize_t block[ 1 ];
 
-  H5View( hsize_t icount,
+  H5View( hsize_t icount = 0,
     hsize_t ioffset = 0,
     hsize_t istride = 1,
     hsize_t iblock = 1 )
@@ -277,7 +277,7 @@ public:
         neuronLinks.begin(), neuronLinks.end(), H5View::MinSynPtr );
 
       // set iterator
-      it_neuronLinks_ = neuronLinks.begin();
+      //it_neuronLinks_ = neuronLinks.begin();
     }
 
     /**
@@ -288,28 +288,31 @@ public:
     void integrateSourceNeurons(
       NESTSynapseList & synapses, const H5View& view )
     {
+      //use private iterator
+      std::vector< NeuronLink >::const_iterator it_neuronLinks = neuronLinks.begin();
+
       uint64_t index = view.view2dataset( 0 );
 
       for ( int i = 0; i < synapses.size(); i++ )
       {
         index = view.view2dataset( i );
 
-        while ( it_neuronLinks_ < neuronLinks.end() )
+        while ( it_neuronLinks < neuronLinks.end() )
         {
-          if ( index >= ( it_neuronLinks_->syn_ptr + it_neuronLinks_->syn_n ) )
+          if ( index >= ( it_neuronLinks->syn_ptr + it_neuronLinks->syn_n ) )
           {
-            it_neuronLinks_++;
+            it_neuronLinks++;
           }
-          else if ( index < it_neuronLinks_->syn_ptr )
+          else if ( index < it_neuronLinks->syn_ptr )
           {
             std::cout << "ERROR:"
                       << "index=" << index
-                      << "\tsyn_ptr=" << it_neuronLinks_->syn_ptr << std::endl;
+                      << "\tsyn_ptr=" << it_neuronLinks->syn_ptr << std::endl;
             break;
           }
           else
           {
-            synapses[ i ].source_neuron_ = it_neuronLinks_->id;
+            synapses[ i ].source_neuron_ = it_neuronLinks->id;
             break;
           }
         }
@@ -321,7 +324,7 @@ public:
      * Move file pointer to for next function call
      *
      */
-    void iterateOverSynapsesFromFiles( NESTSynapseList & synapses )
+    void iterateOverSynapsesFromFiles( NESTSynapseList& synapses, H5View& dataspace_view )
     {
       uint64_t private_offset = fixed_num_syns_ * RANK + global_offset_;
       global_offset_ += fixed_num_syns_ * NUM_PROCESSES;
@@ -333,7 +336,10 @@ public:
         ( ( int64_t ) total_num_syns_ - ( int64_t ) private_offset ) );
       if ( count < 0 )
         count = 0;
-      H5View dataspace_view( count, private_offset );
+        
+      //H5View dataspace_view( count, private_offset );
+      dataspace_view.count[0] = count;
+      dataspace_view.offset[0] = private_offset;
 
       hid_t dataspace_id = H5Dget_space( syn_dataset->getId() );
       hid_t memspace_id;
@@ -376,7 +382,9 @@ public:
       H5Sclose( dataspace_id );
 
       // integrate NEST neuron id offset to synapses
-      integrateSourceNeurons( synapses, dataspace_view );
+      //NESTSynapseList* task_one = &synapses;
+      //#pragma omp task firstprivate(task_one, dataspace_view)
+      //integrateSourceNeurons( *task_one, dataspace_view );
 
       // observer variable
       n_readSynapses += dataspace_view.count[ 0 ];

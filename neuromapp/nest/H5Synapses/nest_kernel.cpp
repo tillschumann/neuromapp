@@ -17,6 +17,11 @@ void nest::kernel_manager::destroy()
     delete kernel_instance;
 }
 
+nest::kernel_manager::connection_manager::connection_manager()
+{
+    num_connections.resize(nest::kernel().vp_manager.get_max_threads(), 0);
+}
+
 nest::index nest::kernel_manager::mpi_manager::suggest_rank(const int& gid)
 {
     return kernel().neuro_mpi_dist->suggest_group(gid);

@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
     props.push_back("U0");
     h5synapses.set_properties(props);
 
-    h5synapses.set_num_synapses(524288*5);
+    h5synapses.set_num_synapses(524288*100);
 
     GIDCollection gids;
     h5synapses.set_mapping(gids);

@@ -43,12 +43,6 @@ namespace nest
             bool is_local_gid(const int& gid);
         } node_manager;
 
-        struct connection_manager
-        {
-            std::vector<long> num_connections;
-            void connect(const int& s_gid, const int& t_gid, std::vector<double>& v);
-        } connection_manager;
-
         struct vp_manager
         {
             inline index get_thread_id()
@@ -68,6 +62,14 @@ namespace nest
                 #endif
             }
         } vp_manager;
+        
+        struct connection_manager
+        {
+            std::vector<long> num_connections;
+            void connect(const int& s_gid, const int& t_gid, std::vector<double>& v);
+            
+            connection_manager();
+        } connection_manager;
 
         inline void set_mpi_dist(environment::nestdistribution* mpi_dist)
         {
