@@ -153,7 +153,7 @@
         memspace_id,
         dataspace_id,
         dxpl_id_,
-        &(*buffer.begin()) );
+        &buffer[0] );
 
       H5Pclose( dxpl_id_ );
 

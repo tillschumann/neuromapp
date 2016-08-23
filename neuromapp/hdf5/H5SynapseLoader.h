@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <numeric>
 #include <vector>
+#include <string>
 
 #ifndef H5SYNAPSESLOADER_CLASS
 #define H5SYNAPSESLOADER_CLASS
