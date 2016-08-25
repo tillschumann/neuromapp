@@ -3,7 +3,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 
 
 add_library (h5synapses H5Synapses.cpp NESTNodeSynapse.cpp nest_kernel.cpp)
-target_link_libraries(h5synapses coreneuron10_queueing coreneuron10_environment)
+target_link_libraries(h5synapses coreneuron10_environment)
 target_include_directories(h5synapses PRIVATE ${HDF5_INCLUDE_DIRS})
 
 install (TARGETS h5synapses DESTINATION lib)
@@ -14,12 +14,12 @@ add_executable(nest_h5synapses distributed_driver.cpp )
 
 target_link_libraries (nest_h5synapses
                        h5synapses
-                       coreneuron10_queueing
                        coreneuron10_environment
                        ${MPI_CXX_LIBRARIES}
                        ${MPI_C_LIBRARIES}
                        ${Boost_LIBRARIES}
-                       ${HDF5_LIBRARIES})
+                       ${HDF5_LIBRARIES}
+		       ${HDF5_COMPILER_LIB})
 target_include_directories(nest_h5synapses PRIVATE ${HDF5_INCLUDE_DIRS})
 
 install (TARGETS nest_h5synapses DESTINATION bin)

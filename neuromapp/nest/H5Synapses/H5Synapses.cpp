@@ -156,15 +156,20 @@ H5Synapses::CommunicateSynapses( NESTSynapseList& synapses )
   // use iterator instead
   // uint32_t* send_buffer = new
   // uint32_t[synapses_.size()*synapses_.entry_size_int()];
-  mpi_buffer<int> send_buffer(synapses.size() * synapses.sizeof_entry()/sizeof(int));
+  const int intsizeof_entry = synapses.sizeof_entry()/sizeof(int);
+  mpi_buffer<int> send_buffer(synapses.size() * intsizeof_entry, true);
 
   // store number of int values per entry
   int entriesadded;
+
+  #pragma omp parallel for
   for ( uint32_t i = 0; i < synapses.size(); i++ )
   {
+    const size_t offset = i * intsizeof_entry;
     // serialize entry
-    entriesadded = synapses[ i ].serialize( send_buffer );
+    entriesadded = synapses[ i ].serialize( send_buffer, offset );
 
+    assert(offset==entriesadded);
     // save number of values added
     sendcounts[ synapses[ i ].node_id_ ] += entriesadded;
   }
@@ -181,7 +186,7 @@ H5Synapses::CommunicateSynapses( NESTSynapseList& synapses )
   }
 
   // use number of values per entry to determine number of recieved synapses
-  const int32_t recv_synpases_count = rdispls[ num_processes ] / (synapses.sizeof_entry()/sizeof(int));
+  const int32_t recv_synpases_count = rdispls[ num_processes ] / intsizeof_entry;
 
   // allocate recv buffer
   mpi_buffer<int> recvbuf( rdispls[ num_processes ], true );
@@ -200,9 +205,11 @@ H5Synapses::CommunicateSynapses( NESTSynapseList& synapses )
   synapses.resize( recv_synpases_count );
 
   // fill synapse list with values from buffer
-  for ( uint32_t i = 0; i < synapses.size(); i++ )
-      synapses[ i ].deserialize( recvbuf );
-
+  #pragma omp parallel for
+  for ( uint32_t i = 0; i < synapses.size(); i++ ) {
+      const size_t offset = i * intsizeof_entry;
+      synapses[ i ].deserialize( recvbuf, offset );
+  }
   // return status
   if ( sdispls[ num_processes ] > 0 && rdispls[ num_processes ] > 0 )
     return SENDRECV;
@@ -324,51 +331,66 @@ H5Synapses::import()
     num_syanpses_per_process_,
     last_total_synapse_ );
 
-  struct timeval start_all, end_all, start_load, end_load;
-
+  struct timeval start_mpicon, end_mpicon, start_load, end_load, start_push, end_push;
+  long long t_load=0;
+  long long t_mpicon=0;
+  long long t_push=0;
   std::queue< NESTSynapseList* > synapse_queue;
 
   // add all synapses into queue
+  gettimeofday(&start_push, NULL);
  #pragma omp parallel  
  {
- std::cout << "threads:" << omp_get_num_threads() << "\n";
  #pragma omp single
  {
   while ( !synloader.eof() ) {
-      #ifdef SCOREP_COMPILE
-      SCOREP_USER_REGION_BEGIN( "load", SCOREP_USER_REGION_TYPE_FUNCTION )
-#endif
-
+     #ifdef SCOREP_COMPILE
+     SCOREP_USER_REGION( "enqueue", SCOREP_USER_REGION_TYPE_FUNCTION )
+     #endif
      NESTSynapseList* newone = new NESTSynapseList;
      newone->set_properties(synapses_.prop_names_);
+     
+     H5View dataspace_view;
+      {
+      #ifdef SCOREP_COMPILE
+      SCOREP_USER_REGION( "read", SCOREP_USER_REGION_TYPE_FUNCTION )
+      #endif
 
-     //gettimeofday(&start_all, NULL);
 
-      //gettimeofday(&start_load, NULL);
-      
-      H5View dataspace_view;
+      gettimeofday(&start_load, NULL);
       synloader.iterateOverSynapsesFromFiles( *newone, dataspace_view );
-      //gettimeofday(&end_load, NULL);
+      gettimeofday(&end_load, NULL);
       
+     }
+      t_load += (1000 * (end_load.tv_sec - start_load.tv_sec))
+             + ((end_load.tv_usec - start_load.tv_usec) / 1000);
+
       #pragma omp task firstprivate(newone, dataspace_view)
       {
+        {
+        //#ifdef SCOREP_COMPILE
+        //SCOREP_USER_REGION( "integrate_and_sort", SCOREP_USER_REGION_TYPE_FUNCTION )
+       //#endif
         synloader.integrateSourceNeurons( *newone, dataspace_view );
         integrateMapping(*newone);
         sort(*newone);
 
         //#pragma omp critical (commicatesynapses)
         //CommunicateSynapses(*newone);
+        }
       }
       synapse_queue.push(newone);
-      
-      std::cout << "pushed to queue" << "\n";
   }
   #pragma omp taskwait
   }
   }
-
+  gettimeofday(&end_push, NULL);
   //iterate over queue and connect connections in NEST data structure
     while (!synapse_queue.empty()) {
+        #ifdef SCOREP_COMPILE
+       SCOREP_USER_REGION( "dequeue", SCOREP_USER_REGION_TYPE_FUNCTION )
+        #endif
+        gettimeofday(&start_mpicon, NULL);
         NESTSynapseList* synapses = synapse_queue.front();
         synapse_queue.pop();
 
@@ -384,18 +406,25 @@ H5Synapses::import()
         //freeSynapses(*synapses);
 
         delete synapses;
+        gettimeofday(&end_mpicon, NULL);
 
     
-        /*gettimeofday(&end_all, NULL);
 
-        long long t_all = (1000 * (end_all.tv_sec - start_all.tv_sec))
-            + ((end_all.tv_usec - start_all.tv_usec) / 1000);
-        long long t_load = (1000 * (end_load.tv_sec - start_load.tv_sec))
-            + ((end_load.tv_usec - start_load.tv_usec) / 1000);
-        std::cout << "rank=" << nest::kernel().mpi_manager.get_rank() << "\tmem_cons=" << n_memSynapses << "\tt_all=" << t_all << "ms\tt_load=" << t_load << "ms" << std::endl;
-        */
-        std::cout << "connected" << "\n";
+        t_mpicon += (1000 * (end_mpicon.tv_sec - start_mpicon.tv_sec))
+            + ((end_mpicon.tv_usec - start_mpicon.tv_usec) / 1000);
+        //std::cout << "rank=" << nest::kernel().mpi_manager.get_rank() << "\tmem_cons=" << n_memSynapses <<"\tt_mpicon=" << t_mpicon << "ms" << std::endl;
     }
+
+  t_push += (1000 * (end_push.tv_sec - start_push.tv_sec))
+             + ((end_push.tv_usec - start_push.tv_usec) / 1000);
+  std::cout << "rank=" << nest::kernel().mpi_manager.get_rank()
+	<< "\tread_cons="<< n_readSynapses
+	<< "\tmem_cons=" << n_memSynapses
+	<< "\tt_load=" << t_load  << "ms"
+	<< "\tt_mpicon=" << t_mpicon << "ms"
+        << "\tt_push=" << t_push << "ms"
+	<< std::endl;
+
 
   // recieve datasets from other nodes
   // necessary because datasets may be distributed unbalanced

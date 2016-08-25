@@ -17,5 +17,5 @@ target_link_libraries (app
                        ${Boost_PROGRAM_OPTIONS_LIBRARIES}
                        ${Boost_CHRONO_LIBRARIES}
                        ${Boost_SYSTEM_LIBRARIES}
-                       ${Boost_ATOMIC_LIBRARIES})
+                       ${HDF5_LIBRARIES})
 install (TARGETS app DESTINATION bin)

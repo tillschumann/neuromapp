@@ -29,15 +29,15 @@ namespace environment
         /**
          *  Return true if gid is stored locally
          */
-        virtual bool isLocal(size_t id) const = 0;
+        virtual bool isLocal(const size_t& id) const = 0;
         /**
          *  Maps global ids to local ids
          */
-        virtual size_t global2local(size_t glo) const = 0;
+        virtual size_t global2local(const size_t& glo) const = 0;
         /**
          *  Maps local ids to global ids
          */
-        virtual size_t local2global(size_t loc) const = 0;
+        virtual size_t local2global(const size_t& loc) const = 0;
     };
 
     class continousdistribution : public neurondistribution {
@@ -61,20 +61,20 @@ namespace environment
         {
             return global_number;
         }
-        inline bool isLocal(size_t id) const
+        inline bool isLocal(const size_t& id) const
         {
             assert(id < global_number);
 
             return id>=start && id<start+local_number;
         }
-        inline size_t global2local(size_t glo) const
+        inline size_t global2local(const size_t& glo) const
         {
             assert(glo>=start);
             assert(glo<start+local_number);
 
             return  glo - start;
         }
-        inline size_t local2global(size_t loc) const
+        inline size_t local2global(const size_t& loc) const
         {
             assert(loc < local_number);
 
@@ -106,23 +106,23 @@ namespace environment
             {
                 return global_number;
             }
-            inline size_t suggest_group(size_t glo) const
+            inline size_t suggest_group(const size_t& glo) const
             {
                 assert(glo < global_number);
 
                 return glo % num_groups;
             }
-            inline bool isLocal(size_t glo) const
+            inline bool isLocal(const size_t& glo) const
             {
                 return (suggest_group(glo) == group_id);
             }
-            inline size_t global2local(size_t glo) const
+            inline size_t global2local(const size_t& glo) const
             {
                 assert(isLocal(glo));
 
                 return  glo/num_groups;
             }
-            inline size_t local2global(size_t loc) const
+            inline size_t local2global(const size_t& loc) const
             {
                 assert(loc < local_number);
 

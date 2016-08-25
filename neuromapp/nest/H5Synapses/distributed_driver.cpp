@@ -40,9 +40,15 @@
 
 
 int main(int argc, char* argv[]) {
-    assert(argc == 4);
+    assert(argc >= 4);
 
-    MPI_Init(NULL, NULL);
+    int provieded_threadsupport;
+    MPI_Init_thread(NULL, NULL, MPI_THREAD_FUNNELED, &provieded_threadsupport);
+    
+    if (provieded_threadsupport == MPI_THREAD_SERIALIZED)
+	std::cout << "Got MPI_THREAD_SERIALIZED support" << std::endl;
+    else 
+        std::cout << "MPI_THREAD_SERIALIZED support not available!!" << std::endl;
 
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -51,7 +57,10 @@ int main(int argc, char* argv[]) {
     const int nthreads = atoi(argv[1]);
     const int ncells = atoi(argv[2]);
     std::string syn_file(argv[3]);
-
+    
+    int limit_syn = -1;
+    if (argc>4)
+    	limit_syn = atoi(argv[4]);
     //load kernel environment
     nest::kernel_env kenv;
 
@@ -77,9 +86,12 @@ int main(int argc, char* argv[]) {
     props.push_back("delay");
     props.push_back("weight");
     props.push_back("U0");
+    props.push_back("TauRec");
+    props.push_back("TauFac");
     h5synapses.set_properties(props);
 
-    h5synapses.set_num_synapses(524288*100);
+    if (limit_syn>0)
+    	h5synapses.set_num_synapses(limit_syn);
 
     GIDCollection gids;
     h5synapses.set_mapping(gids);
