@@ -169,7 +169,6 @@ H5Synapses::CommunicateSynapses( NESTSynapseList& synapses )
     // serialize entry
     entriesadded = synapses[ i ].serialize( send_buffer, offset );
 
-    assert(offset==entriesadded);
     // save number of values added
     sendcounts[ synapses[ i ].node_id_ ] += entriesadded;
   }

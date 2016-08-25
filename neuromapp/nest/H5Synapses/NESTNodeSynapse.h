@@ -133,7 +133,7 @@ struct NESTSynapseRef
     for ( int j = 0; j < params_.size(); j++ )
       buf[i++] = *reinterpret_cast< int* >( &params_[ j ] ) ;
 
-    return begin_i - i;
+    return i-begin_i;
   }
   void
   deserialize( mpi_buffer<int>& buf, size_t i )
