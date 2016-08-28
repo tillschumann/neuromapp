@@ -42,13 +42,8 @@
 int main(int argc, char* argv[]) {
     assert(argc >= 4);
 
-    int provieded_threadsupport;
-    MPI_Init_thread(NULL, NULL, MPI_THREAD_FUNNELED, &provieded_threadsupport);
+    MPI_Init(NULL, NULL);
     
-    if (provieded_threadsupport == MPI_THREAD_SERIALIZED)
-	std::cout << "Got MPI_THREAD_SERIALIZED support" << std::endl;
-    else 
-        std::cout << "MPI_THREAD_SERIALIZED support not available!!" << std::endl;
 
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
