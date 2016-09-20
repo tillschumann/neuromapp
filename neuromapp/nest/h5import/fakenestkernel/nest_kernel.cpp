@@ -42,6 +42,21 @@ void kernel_manager::connection_manager::connect( const index& s_gid, const inde
     
     num_connections[ thrd ]++;
     sum_values[ thrd ] = std::accumulate( v.begin(), v.end(), sum_values[ thrd ] );
+
+    #pragma omp critical {
+    if ( t_gid == 20739140 )
+        std::cout << s_gid << " -> 20739140" << std::endl;
+    if ( t_gid == 13277631 )
+        std::cout << s_gid << " -> 13277631" << std::endl;
+    if ( t_gid == 6529222 )
+        std::cout << s_gid << " -> 6529222" << std::endl;
+    if ( t_gid == 35586736 )
+        std::cout << s_gid << " -> 35586736" << std::endl;
+    if ( t_gid == 8063514 )
+        std::cout << s_gid << " -> 8063514" << std::endl;
+    if ( t_gid == 28969064 )
+        std::cout << s_gid << " -> 28969064" << std::endl;
+    }
 }
 
 kernel_manager* kernel_manager::kernel_instance = NULL;

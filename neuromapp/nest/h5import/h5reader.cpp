@@ -46,7 +46,7 @@ using namespace h5import;
         H5Tinsert( memtype_, datasets[ i ].c_str(), sizeof( int )+i*sizeof( float ), H5T_NATIVE_FLOAT );
 
     //currently no neuron link dataset available in test dataset
-    //loadNeuronLinks();
+    loadNeuronLinks();
 
 
   }

@@ -88,6 +88,7 @@ H5Synapses::CommunicateSynapses( SynapseList& synapses )
     entriesadded = synapses[ i ].serialize( send_buffer, offset );
 
     // save number of values added
+    #pragma omp atomic
     sendcounts[ synapses[ i ].node_id_ ] += entriesadded;
   }
 
@@ -245,7 +246,7 @@ void H5Synapses::import()
 
                 #pragma omp task firstprivate(newone, dataspace_view)
                 {
-                    //synloader.integrateSourceNeurons( *newone, dataspace_view );
+                    synloader.integrateSourceNeurons( *newone, dataspace_view );
                     integrateMapping(*newone);
                     sort(*newone);
                 }
