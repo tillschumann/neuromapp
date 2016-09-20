@@ -6,7 +6,7 @@
  */
 
 #include <numeric>
-
+#include <iostream>
 #include "nest/h5import/fakenestkernel/nest_kernel.h"
 
 using namespace h5import;
@@ -43,18 +43,28 @@ void kernel_manager::connection_manager::connect( const index& s_gid, const inde
     num_connections[ thrd ]++;
     sum_values[ thrd ] = std::accumulate( v.begin(), v.end(), sum_values[ thrd ] );
 
-    #pragma omp critical {
-    if ( t_gid == 20739140 )
+    if ( t_gid == 20739140 ) {
+        #pragma omp critical
         std::cout << s_gid << " -> 20739140" << std::endl;
-    if ( t_gid == 13277631 )
+    }
+    if ( t_gid == 13277631 ) {
+        #pragma omp critical
         std::cout << s_gid << " -> 13277631" << std::endl;
-    if ( t_gid == 6529222 )
+    }
+    if ( t_gid == 6529222 ) {
+        #pragma omp critical
         std::cout << s_gid << " -> 6529222" << std::endl;
-    if ( t_gid == 35586736 )
+    }
+    if ( t_gid == 35586736 ) {
+        #pragma omp critical
         std::cout << s_gid << " -> 35586736" << std::endl;
-    if ( t_gid == 8063514 )
+    }
+    if ( t_gid == 8063514 ) {
+        #pragma omp critical
         std::cout << s_gid << " -> 8063514" << std::endl;
-    if ( t_gid == 28969064 )
+    }
+    if ( t_gid == 28969064 ) {
+        #pragma omp critical
         std::cout << s_gid << " -> 28969064" << std::endl;
     }
 }
