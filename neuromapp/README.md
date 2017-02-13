@@ -10,7 +10,8 @@
 * keyvalue: mini-app to test the performance of one neuroscience use case with key/value store on BG/Q (C++)
 * replib: mini-app that simulates the behavior of Neuron's ReportingLib to write simulation reports (C++)
 * spike: contains the spike exchange mini-app (C++)
-* synapse: contains a simulation of NEST synapse models (C++)
+* nest: contains a simulation of NEST synapse models and the hdf5 import (C++)
+* hdf5: io benchmarks for PointBrainH5 files (C++)
 * utils: a collection of libraries that define common utilities shared by the mini-apps
  * mpi: contains several MPI utilities, like timer, printing, creating/destroying MPI env, etc.
  * omp: wrapper to OMP functions. This avoids having ifdef's in mini-app codes to check whether OMP is present or not
